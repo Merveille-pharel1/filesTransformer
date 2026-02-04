@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gallery</title>
+
+    <style>
+        body {
+          font-family: Sans-Serif;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            padding: 1.2rem 2rem;
+            margin-bottom: 2rem;
+
+            background: linear-gradient(135deg, #1f2933, #111827);
+            color: #f9fafb;
+
+            border-radius: 14px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        header p {
+            margin: 0;
+            font-size: 1rem;
+            cursor: pointer;
+
+            padding: 0.5rem 1.2rem;
+            border-radius: 999px;
+
+            background-color: rgba(255, 255, 255, 0.15);
+            transition: all 0.25s ease;
+        }
+
+        header p:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        section {
+            padding-bottom: 100px; /* espace pour le formulaire fixé */
+        }
+
+        #uploadForm {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: #1f2933;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            color: #f9fafb;
+        }
+
+        #uploadForm input[type="file"],
+        #uploadForm input[type="text"],
+        #uploadForm select {
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            border: 1px solid #374151;
+            background-color: #111827;
+            color: #f9fafb;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s ease-in-out;
+        }
+
+        #uploadForm input[type="file"] {
+            padding: 0.3rem;
+        }
+
+        #uploadForm input[type="text"]:focus,
+        #uploadForm select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+        }
+
+        #uploadForm button {
+            padding: 0.5rem 1.2rem;
+            border: none;
+            border-radius: 999px;
+            background-color: #3b82f6;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        #uploadForm button:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        #uploadForm button:active {
+            transform: translateY(0);
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Gallery</h1>
+
+        <p onclick="login();">Se connecter</p>
+    </header>
+
+    <section>
+        <h2>Files</h2>
+
+        <ul id="files"></ul>
+
+        <form id="uploadForm">
+            <input type="file" id="fileInput" required>
+            <input type="text" id="filePassword" placeholder="Optional password">
+            <select id="fileType">
+                <option value="ls">ls</option>
+                <option value="dig">dig</option>
+                <option value="ping">ping</option>
+            </select>
+            <select id="fileFormat">
+                <option value="json">JSON</option>
+                <option value="yaml">YAML</option>
+            </select>
+            <button type="submit">Upload</button>
+        </form>
+    
+    </section>
+
+    <script>
+
+        document.querySelector("#uploadForm").onsubmit = async function(e) {
+            e.preventDefault();
+
+            const fileInput = document.querySelector("#fileInput");
+            if (!fileInput.files.length) return alert("Select a file");
+
+            const file = fileInput.files[0];
+            const password = document.querySelector("#filePassword").value;
+            const type = document.querySelector("#fileType").value;
+            const format = document.querySelector("#fileFormat").value;
+
+            const formData = new FormData();
+            formData.append("original_file", file);
+            if(password) formData.append("password", password);
+            formData.append("options", JSON.stringify({ type: type, format: format }));
+
+            const options = {
+                method: "POST",
+                credentials: "include",
+                body: formData
+            };
+
+            await apply("/files", options);
+
+            document.querySelector("#uploadForm").reset();
+        };
+
+
+        async function login() {
+
+            const options = {
+                method: 'GET',
+                credentials: 'include'
+            };
+
+            apply('/login', options);
+        }
+
+
+        async function editFile(button) {
+            const li = button.parentElement;
+            const a = li.querySelector('a');
+            const url = a.href;
+
+            const password = prompt("New password (leave empty to remove):");
+            
+            if(password == null) return;
+            
+
+            const options = {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: {"Content-Type": "text/plain"},
+                body: password
+            };
+
+            apply(url, options);  
+        }
+
+
+        async function remove(button) {
+            const li = button.parentElement;
+            const a = li.querySelector('a');
+            const url = a.href;
+
+            const options = {
+                method: 'DELETE',
+                credentials: 'include'
+            };
+
+            apply(url, options);  
+        }
+
+
+        async function apply(url, options) {
+            
+            const response = await fetch(url, options);
+
+            if (!response.ok) {
+                const text = await response.text();
+                alert(text);
+                return;
+            } 
+
+            loadFiles();
+
+            if (response.status === 303) {
+                const location = response.headers.get("Location");
+                if (location) {
+                    window.location.href = location;
+                }
+                return;
+            }
+            
+        }
+
+        async function loadFiles() {
+            const files = await fetch('/files', { method: 'GET', credentials: 'include', cache: "no-store"}).then(response => response.json()).catch(() => []);
+            const ul = document.querySelector('#files');
+            ul.innerHTML = '';
+            ul.style.display = 'initial'
+
+            if (files.length == 0) {
+              ul.style.display = 'contents'
+              ul.innerHTML = 'Liste vide!'
+            }
+
+            for(const f of files) {
+                const li = document.createElement('li');
+                li.style.marginBottom = '32px';
+
+                li.innerHTML = `
+                    <p style="color: gray;">${f.timestamp}</p>
+                    <a href="/files/${f.uuid}">${f.name}</a> 
+                `;
+
+                if (f.mine) {
+                  li.style.listStyleType = 'disclosure-closed';
+                }
+
+                const locked = (f.private && !f.mine);
+                if (locked) {
+                    li.innerHTML += '🔒 ';
+                } else if (f.private) {
+                    li.innerHTML += '🔓 ';
+                }
+
+                li.innerHTML += `
+                    <button class="edit" onclick="editFile(this);">✏️</button>
+                    <button class="remove" onclick="remove(this);">X</button>
+                `;
+
+                li.querySelector('a').onclick = function (e) {
+                    if (locked) {
+                        e.preventDefault(); 
+
+                        const password = prompt('Password?');
+                        if (password != null) {
+                            window.location = `${e.target.href}?pass=${password}`;
+                        }
+                    }
+                };
+
+                ul.appendChild(li);
+            }
+        }
+
+        loadFiles();
+    </script>
+</body>
+</html>
