@@ -1,0 +1,6 @@
+total 16
+drwxr-xr-x 4 etd etd 4096 Dec 12 12:37 .
+drwxr-xr-x 8 etd etd 4096 Nov 24 13:46 ..
+drwxr-xr-x 2 etd etd 4096 Dec 12 12:11 client
+-rw-r--r-- 1 etd etd    0 Dec 12 12:37 ls-file.txt
+drwxr-xr-x 3 etd etd 4096 Dec 12 12:12 server
